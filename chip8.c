@@ -1,3 +1,4 @@
+#include <math.h>
 #include <stdint.h>
 #include <string.h>
 #include <stdio.h>
@@ -74,11 +75,11 @@ int chip8_load(char* fname)
 void chip8_cycle()
 {
     uint16_t opcode;
-    uint16_t addr;$
-    uint8_t nn;$
-    uint8_t n;$
-    uint8_t x;$
-    uint8_t y;$
+    uint16_t addr;
+    uint8_t nn;
+    uint8_t n;
+    uint8_t x;
+    uint8_t y;
 
     opcode = memory[PC] << 8 | memory[PC + 1];
     addr = opcode & 0x0FFF;      //lowest three bytes
@@ -98,8 +99,8 @@ void chip8_cycle()
                 case 0x00EE:
                     //Return from a subroutine
                     break;
-                default:
-                    //unknown opcode
+                default: //unknown opcode
+		    break;
             }
             PC += 2;
             break;
@@ -197,6 +198,7 @@ void chip8_cycle()
                     break;
                 default:
                     //unknown opcode
+		    break;
             }
             PC += 2;
             break;
@@ -255,6 +257,7 @@ void chip8_cycle()
                     PC += 2;
                     break;
                 case 0x0A:
+		{
                     //Wait for a keypress and store that key value at VX
                     uint8_t wait = TRUE;
                     uint8_t i;
@@ -272,13 +275,14 @@ void chip8_cycle()
                     }
                     PC += 2;
                     break;
+		}
                 case 0x15:
                     //set delay timer to the value of VX
                     delay_timer = V[x];
                     PC += 2;
                     break;
                 case 0x18:
-                    //set sound timer to the value of VX$
+                    //set sound timer to the value of VX
                     sound_timer = V[x];
                     PC += 2;
                     break;
@@ -317,9 +321,11 @@ void chip8_cycle()
                     break;
                 default:
                     //unknown opcode
+		    break;
             }
             break;
         default:
             //unknown opcode
+	    break;
     }
 }
