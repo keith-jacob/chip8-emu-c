@@ -13,6 +13,7 @@ extern uint8_t font[FONT_SIZE];
 void print_results(char* s, int result);
 void test_init();
 void test_load();
+void test_cycle();
 
 int main()
 {
@@ -93,6 +94,11 @@ void test_load()
         }
     }
     print_results("load_filename_test", success);
+}
+
+void test_cycle()
+{
+
 }
 
 void print_results(char* test, int result)
