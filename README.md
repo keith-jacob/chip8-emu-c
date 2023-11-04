@@ -11,6 +11,7 @@ To use:
 Run './chip8 <pat/to/file.rom>'
 
 To run the unit tests, run './test'
+
 Tests are not complete and only test some of the functionality.
 Tests are still needed for the chip8_cycle method.
 The chip8 init tests need to be updated as well.
