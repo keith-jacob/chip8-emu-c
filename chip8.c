@@ -10,8 +10,13 @@ uint8_t V[REG_COUNT]; //Data Registers (V0-VF)
 uint8_t key[KEY_SIZE]; //Tracks key presses
 uint16_t I; //Address register
 uint16_t PC; //Program counter
+uint16_t stack[STACK_SIZE];
+uint8_t SP;
 uint8_t delay_timer;
 uint8_t sound_timer;
+
+uint8_t pixels[SCR_WIDTH][SCR_LENGTH];
+uint8_t drawFlag;
 
 #define FONTSET_ADDRESS 0x0
 #define FONTSET_BYTES_PER_CHAR 5
@@ -37,11 +42,23 @@ uint8_t font[FONT_SIZE] = {
 void chip8_init()
 {
     PC = PROGRAM_START;
+    SP = 0;
+    drawFlag = TRUE;
 
     //initialize memory
     memset(memory, 0, sizeof(uint8_t) * MEM_SIZE);
     memset(V, 0, sizeof(uint8_t) * REG_COUNT);
     memset(key, 0, sizeof(uint8_t) * KEY_SIZE);
+    memset(stack, 0, sizeof(uint16_t) * STACK_SIZE);
+
+    //initialize 2d screen array
+    for (int w_iter = 0; w_iter < SCR_WIDTH; w_iter++)
+    {
+        for (int l_iter = 0; l_iter < SCR_LENGTH; l_iter++)
+        {
+            pixels[w_iter][l_iter] = BLACK;
+        }
+    }
 
     //load font into memory
     for (int i = 0; i < FONT_SIZE; i++)
@@ -72,6 +89,25 @@ int chip8_load(char* fname)
     return 1;
 }
 
+void draw_sprite(uint8_t coord_x, uint8_t coord_y, uint8_t n)
+{
+    V[0xF] = 0x00;
+
+    for (int ypixel = 0; ypixel < n; ypixel++)
+    {
+        uint16_t data = memory[I + ypixel];
+        for (int xpixel = 0; xpixel < 8; xpixel++)
+        {
+            if ((data & (0x80 >> xpixel)) != 0)
+            {
+                if (pixels[coord_x + xpixel][coord_y + ypixel] == 1)
+                    V[0xF] = 0x01;
+                pixels[coord_x + xpixel][coord_y + ypixel] ^= WHITE;
+            }
+        }
+    }
+}
+
 void chip8_cycle()
 {
     uint16_t opcode;
@@ -95,12 +131,22 @@ void chip8_cycle()
             {
                 case 0x00E0:
                     //clear the screen
+                    for (int w_iter = 0; w_iter < SCR_WIDTH; w_iter++)
+                    {
+                        for (int l_iter = 0; l_iter < SCR_LENGTH; l_iter++)
+                        {
+                            pixels[w_iter][l_iter] = BLACK;
+                        }
+                    }
+                    drawFlag = TRUE;
                     break;
                 case 0x00EE:
                     //Return from a subroutine
+                    --SP;
+                    PC = stack[SP];
                     break;
                 default: //unknown opcode
-		    break;
+                    break;
             }
             PC += 2;
             break;
@@ -110,7 +156,9 @@ void chip8_cycle()
             break;
         case 0x2000:
             //Execute subroutine starting at addr
-            PC += 2;
+            stack[SP] = PC;
+            ++SP;
+            PC = addr;
             break;
         case 0x3000:
             //Skip following instruction if VX equals NN
@@ -198,7 +246,7 @@ void chip8_cycle()
                     break;
                 default:
                     //unknown opcode
-		    break;
+                    break;
             }
             PC += 2;
             break;
@@ -224,9 +272,10 @@ void chip8_cycle()
             PC += 2;
             break;
         case 0xD000:
-            //draw a sprite at position VX, VY with N bytes of sprite data starting at the addr stored in I
+            //draw a sprite at position VX, VY with length of N pixels of sprite data starting at the addr stored in I, and a width of 8 pixels
             //if any set pixels are changed to unset, set VF to 01 else set VF to 00
-            //draw_sprite(V[x], V[y], n)
+            draw_sprite(V[x], V[y], n);
+            drawFlag = TRUE;
             PC += 2;
             break;
         case 0xE000:
@@ -257,25 +306,23 @@ void chip8_cycle()
                     PC += 2;
                     break;
                 case 0x0A:
-		{
-                    //Wait for a keypress and store that key value at VX
-                    uint8_t wait = TRUE;
-                    uint8_t i;
-                    while(wait)
                     {
-                        for(i = 0; i < KEY_SIZE; i++)
+                        //Check for a keypress and store that key value at VX
+                        //Keep checking until a keypress occurs
+                        uint8_t key_pressed = FALSE;
+                        for(int iter = 0; iter < KEY_SIZE; iter++)
                         {
-                            if (key[i])
+                            if (key[iter])
                             {
-                                V[x] = i;
-                                wait = FALSE;
-                                break;
+                                V[x] = iter;
+                                key_pressed = TRUE;
                             }
                         }
+                        if (key_pressed)
+                            PC += 2;
+
+                        break;
                     }
-                    PC += 2;
-                    break;
-		}
                 case 0x15:
                     //set delay timer to the value of VX
                     delay_timer = V[x];
@@ -321,11 +368,22 @@ void chip8_cycle()
                     break;
                 default:
                     //unknown opcode
-		    break;
+                    break;
             }
             break;
         default:
             //unknown opcode
-	    break;
+            break;
     }
+
+    if (delay_timer > 0)
+        --delay_timer;
+
+    if (sound_timer > 0)
+    {
+        if (sound_timer == 1)
+            printf("BEEP\n");
+        --sound_timer;
+    }
+
 }

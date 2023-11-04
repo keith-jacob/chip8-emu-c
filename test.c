@@ -20,6 +20,7 @@ int main()
     //run tests
     test_init();
     test_load();
+    test_cycle();
     return 0;
 }
 
